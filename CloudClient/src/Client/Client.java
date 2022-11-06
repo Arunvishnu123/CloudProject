@@ -1,10 +1,11 @@
-package Client;
-
-
-
+package emse.s3;
 
 import java.io.File;
-
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -15,24 +16,21 @@ import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.ListBucketsRequest;
 import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.sns.model.PublishRequest;
+import software.amazon.awssdk.services.sns.model.PublishResponse;
+import software.amazon.awssdk.services.sns.model.SnsException;
 
-public class Client {
+public class S3UploadFile {
 
   public static void main(String[] args) {
     Region region = Region.US_EAST_1;
-    
-
-    if (args.length < 0) {
-      System.out.println(
-          "Missing the Bucket Name, File Path, or File Name arguments");
-      System.exit(1);
-    }
+    String topicARN = "arn:aws:sns:us-east-1:200815170578:firstTopic";
   
 
     String bucketName = "arunb13";
-    
-    String filename =  args[1];
-    String path = args[0] ;
+    String path = "C:\\Users\\ARUN\\OneDrive\\Desktop\\New folder (29)";
+    String filename = "01-10-2022-store1.csv";
 
     S3Client s3 = S3Client.builder().region(region).build();
 
@@ -53,6 +51,20 @@ public class Client {
         .key(filename).build();
     s3.putObject(putOb,
         RequestBody.fromBytes(getObjectFile(path + File.separator + filename)));
+    try {
+      SnsClient snsClient = SnsClient.builder().region(region).build();
+
+      PublishRequest request = PublishRequest.builder().message(bucketName + ";" + filename).topicArn(topicARN)
+          .build();
+
+      PublishResponse snsResponse = snsClient.publish(request);
+      System.out.println(
+          snsResponse.messageId() + " Message sent. Status is " + snsResponse.sdkHttpResponse().statusCode());
+
+    } catch (SnsException e) {
+      System.err.println(e.awsErrorDetails().errorMessage());
+      System.exit(1);
+    }
   }
 
 
